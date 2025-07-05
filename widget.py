@@ -74,7 +74,7 @@ if st.button(t[lang]["refresh"]):
 # Load live matches
 if "matches" not in st.session_state:
     try:
-        query = load_query("liveMatch.graphql")
+        query = load_query("liveMatches.graphql")
         response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
         response.raise_for_status()
         data = response.json()
