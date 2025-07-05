@@ -66,6 +66,7 @@ class LiveCricketScoreWidget:
         self.is_dark_mode = not self.is_dark_mode
 
     def fetch_matches(self):
+        self.score_label.config(text="⏳ Loading live matches...")
         query = """
         query {
             liveMatches {
@@ -85,6 +86,7 @@ class LiveCricketScoreWidget:
             match_names = [match['name'] for match in self.match_data]
             self.match_dropdown['values'] = match_names
             self.match_dropdown.set("Select a match")
+            self.score_label.config(text="Select a match")
         except requests.exceptions.ConnectionError:
             self.score_label.config(text="🛑 Cannot connect to server. Are you offline?")
         except requests.exceptions.Timeout:
@@ -103,6 +105,8 @@ class LiveCricketScoreWidget:
     def update_score(self):
         if not self.selected_match_id:
             return
+
+        self.score_label.config(text="⏳ Loading match info...")
 
         query = f"""
         query {{
@@ -138,7 +142,10 @@ class LiveCricketScoreWidget:
 
             if match['weather']:
                 weather = match['weather']
-                score_text += f"\nWeather in {weather['city']}: {weather['description']}, {weather['temperature']} °C"
+                score_text += f"\n🌦 Weather in {weather['city']}: {weather['description']}, {weather['temperature']} °C"
+                self.apply_weather_theme(weather['description'])
+            else:
+                self.apply_weather_theme("")
 
             self.score_label.config(text=score_text)
             self.root.after(60000, self.update_score)
@@ -187,6 +194,18 @@ class LiveCricketScoreWidget:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to fetch news: {str(e)}")
 
+    def apply_weather_theme(self, description):
+        description = description.lower()
+        if self.is_dark_mode:
+            return  # Don't override dark mode
+        if "rain" in description:
+            self.root.configure(bg="#a1c4fd")  # Rainy
+        elif "sun" in description or "clear" in description:
+            self.root.configure(bg="#fff3b0")  # Sunny
+        elif "cloud" in description:
+            self.root.configure(bg="#d3d3d3")  # Cloudy
+        else:
+            self.root.configure(bg="SystemButtonFace")  # Default
 
 if __name__ == "__main__":
     root = tk.Tk()
