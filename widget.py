@@ -2,16 +2,16 @@ import streamlit as st
 import requests
 import os
 
-# Your deployed GraphQL backend
+# URL of your deployed backend
 GRAPHQL_URL = "https://cricwidget-graphql-u2sv.vercel.app/"
 
-# 🔁 Load query from graphql/queries folder
+# 🔁 Load query from graphql/queries/
 def load_query(filename):
     query_path = os.path.join("..", "graphql", "queries", filename)
     with open(query_path, "r") as f:
         return f.read()
 
-# Language toggle
+# Supported languages
 LANGUAGES = {
     "English": "en",
     "Hindi": "hi"
@@ -50,10 +50,12 @@ t = {
 
 st.set_page_config(page_title="Live Cricket Score", layout="centered")
 
+# Sidebar language and dark mode
 language = st.sidebar.selectbox("Language / भाषा:", list(LANGUAGES.keys()))
 lang = LANGUAGES[language]
 is_dark = st.sidebar.toggle("🌙 Dark Mode") if hasattr(st.sidebar, "toggle") else st.sidebar.checkbox("🌙 Dark Mode")
 
+# Theme colors
 if is_dark:
     st.markdown("""
         <style>
@@ -69,12 +71,14 @@ else:
 
 st.title(t[lang]["select_match"])
 
+# Match refresh button
 if st.button(t[lang]["refresh"]):
     st.session_state.pop("matches", None)
 
+# Fetch live matches
 if "matches" not in st.session_state:
     try:
-        query = load_query("livematches.graphql")
+        query = load_query("liveMatch.graphql")
         response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
         response.raise_for_status()
         data = response.json()
@@ -90,6 +94,7 @@ match_names = [match['name'] for match in matches]
 selected_name = st.selectbox(t[lang]["select_match"], match_names)
 selected_match = next((m for m in matches if m['name'] == selected_name), None)
 
+# Fetch selected match data
 if selected_match:
     try:
         query = load_query("match.graphql")
@@ -109,6 +114,7 @@ if selected_match:
     except Exception as e:
         st.error(t[lang]["error_fetch_match"] + str(e))
 
+# Fetch cricket news
 if st.button(t[lang]["news"]):
     try:
         query = load_query("news.graphql")
