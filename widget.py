@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-GRAPHQL_URL = "http://localhost:4000/"
+GRAPHQL_URL = "https://cricwidget-graphql-u2sv.vercel.app/"
 
 LANGUAGES = {
     "English": "en",
