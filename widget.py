@@ -1,8 +1,17 @@
 import streamlit as st
 import requests
+import os
 
+# Your deployed GraphQL backend
 GRAPHQL_URL = "https://cricwidget-graphql-u2sv.vercel.app/"
 
+# 🔁 Load query from graphql/queries folder
+def load_query(filename):
+    query_path = os.path.join("..", "graphql", "queries", filename)
+    with open(query_path, "r") as f:
+        return f.read()
+
+# Language toggle
 LANGUAGES = {
     "English": "en",
     "Hindi": "hi"
@@ -43,37 +52,20 @@ st.set_page_config(page_title="Live Cricket Score", layout="centered")
 
 language = st.sidebar.selectbox("Language / भाषा:", list(LANGUAGES.keys()))
 lang = LANGUAGES[language]
-# Theme toggle
 is_dark = st.sidebar.toggle("🌙 Dark Mode") if hasattr(st.sidebar, "toggle") else st.sidebar.checkbox("🌙 Dark Mode")
 
-# Apply custom background/text color
 if is_dark:
     st.markdown("""
         <style>
-        body {
-            background-color: #1e1e1e;
-            color: white;
-        }
-        .stApp {
-            background-color: #1e1e1e;
-            color: white;
-        }
+        body, .stApp { background-color: #1e1e1e; color: white; }
         </style>
     """, unsafe_allow_html=True)
 else:
     st.markdown("""
         <style>
-        body {
-            background-color: white;
-            color: black;
-        }
-        .stApp {
-            background-color: white;
-            color: black;
-        }
+        body, .stApp { background-color: white; color: black; }
         </style>
     """, unsafe_allow_html=True)
-
 
 st.title(t[lang]["select_match"])
 
@@ -82,84 +74,53 @@ if st.button(t[lang]["refresh"]):
 
 if "matches" not in st.session_state:
     try:
-        query = """
-        query {
-            liveMatches {
-                id
-                name
-                status
-            }
-        }
-        """
+        query = load_query("livematches.graphql")
         response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
         response.raise_for_status()
         data = response.json()
         if "errors" in data:
             raise Exception(data["errors"][0]["message"])
         st.session_state.matches = data['data']['liveMatches']
-    except:
-        st.error(t[lang]["error_fetch"])
+    except Exception as e:
+        st.error(t[lang]["error_fetch"] + str(e))
         st.stop()
 
 matches = st.session_state.matches
 match_names = [match['name'] for match in matches]
-
 selected_name = st.selectbox(t[lang]["select_match"], match_names)
 selected_match = next((m for m in matches if m['name'] == selected_name), None)
 
 if selected_match:
     try:
-        query = f"""
-        query {{
-            match(matchId: \"{selected_match['id']}\") {{
-                name
-                status
-                score {{ inning r w o }}
-                weather {{ city temperature description }}
-            }}
-        }}
-        """
-        response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
+        query = load_query("match.graphql")
+        variables = {"matchId": selected_match["id"]}
+        response = requests.post(GRAPHQL_URL, json={"query": query, "variables": variables}, timeout=10)
         response.raise_for_status()
         data = response.json()
         if "errors" in data:
             raise Exception(data["errors"][0]["message"])
-
         match = data['data']['match']
         st.subheader(f"{match['name']} — {match['status']}")
-
         for s in match['score']:
             st.markdown(f"**{s['inning']}**: {s['r']}/{s['w']} in {s['o']} overs")
-
         if match['weather']:
             w = match['weather']
             st.info(f"🌦️ Weather in {w['city']}: {w['description']}, {w['temperature']}°C")
-
     except Exception as e:
         st.error(t[lang]["error_fetch_match"] + str(e))
 
 if st.button(t[lang]["news"]):
     try:
-        query = """
-        query {
-            news(query: "cricket") {
-                title
-                url
-                publishedAt
-            }
-        }
-        """
+        query = load_query("news.graphql")
         response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
         response.raise_for_status()
         data = response.json()
         articles = data['data']['news']
-
         if not articles:
             st.info(t[lang]["no_news"])
         else:
             st.header(t[lang]["news_title"])
             for article in articles:
                 st.markdown(f"- [{article['title']}]({article['url']}) _({article['publishedAt']})_")
-
     except Exception as e:
-        st.error(f"Failed to fetch news: {str(e)}")
+        st.error(f"❌ Failed to fetch news: {str(e)}")

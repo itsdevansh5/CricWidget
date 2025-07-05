@@ -3,20 +3,20 @@ console.log("🚧 Starting GraphQL server...");
 const express = require("express");
 const { ApolloServer } = require("@apollo/server");
 const { expressMiddleware } = require("@apollo/server/express4");
-const { readFileSync } = require("fs");
 const cors = require("cors");
+const fs = require("fs");
 const dotenv = require("dotenv");
 
-// Load env variables
+// Load env
 dotenv.config();
 
-// Import resolvers
+// Load schema
+const typeDefs = fs.readFileSync("./schema.graphql", { encoding: "utf-8" });
+
+// Load resolvers
 const matchResolver = require("./resolvers/matchResolver");
 const weatherResolver = require("./resolvers/weatherResolver");
 const newsResolver = require("./resolvers/newsResolver");
-
-// Load GraphQL schema
-const typeDefs = readFileSync("./schema.graphql", { encoding: "utf-8" });
 
 // Combine resolvers
 const resolvers = {
@@ -33,26 +33,22 @@ async function startServer() {
 
   await server.start();
 
-  // 💡 Fix: split into individual middleware lines
   app.use(cors());
-  app.use(express.json());
-  app.use(
-    "/",
-    expressMiddleware(server, {
-      context: async () => ({
-        CRICAPI_KEY: process.env.CRICAPI_KEY,
-        OPENWEATHER_KEY: process.env.OPENWEATHER_KEY,
-        NEWSAPI_KEY: process.env.NEWSAPI_KEY,
-      }),
-    })
-  );
+  app.use(express.json()); // 💥 Must be before Apollo middleware
+  app.use("/", expressMiddleware(server, {
+    context: async () => ({
+      CRICAPI_KEY: process.env.CRICAPI_KEY,
+      OPENWEATHER_KEY: process.env.OPENWEATHER_KEY,
+      NEWSAPI_KEY: process.env.NEWSAPI_KEY,
+    }),
+  }));
 
   const PORT = 4000;
   app.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/`);
+    console.log(`🚀 Server running at http://localhost:${PORT}/`);
   });
 }
 
-startServer().catch((err) => {
-  console.error("❌ Error starting server:", err);
+startServer().catch(err => {
+  console.error("❌ Server error:", err);
 });
