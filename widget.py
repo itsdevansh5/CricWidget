@@ -68,11 +68,13 @@ st.markdown(f"""
 st.title(t[lang]["select_match"])
 
 # Refresh match list
-if st.button(t[lang]["refresh"]):
-    st.session_state.pop("matches", None)
+# Load matches only when user clicks refresh
+if st.button(t[lang]["refresh"]) or "matches" not in st.session_state:
+    st.session_state.loading_matches = True
 
-# Load live matches
-if "matches" not in st.session_state:
+# Trigger load if user requested
+if st.session_state.get("loading_matches"):
+    st.info(t[lang]["loading_matches"])
     try:
         query = load_query("liveMatches.graphql")
         response = requests.post(GRAPHQL_URL, json={"query": query}, timeout=10)
@@ -81,9 +83,14 @@ if "matches" not in st.session_state:
         if "errors" in data:
             raise Exception(data["errors"][0]["message"])
         st.session_state.matches = data['data']['liveMatches']
+        st.session_state.loading_matches = False
     except Exception as e:
         st.error(t[lang]["error_fetch"] + str(e))
+        st.session_state.loading_matches = False
         st.stop()
+
+# Matches available?
+matches = st.session_state.get("matches", [])
 
 matches = st.session_state.matches
 match_names = [match['name'] for match in matches]
